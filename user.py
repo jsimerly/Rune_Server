@@ -1,8 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, List
+from network import NetworkManager
 
 if TYPE_CHECKING:
     from websockets import WebSocketServerProtocol
+    from network import MessageType
 
 class User:
     def __init__(self, username: str, websocket):
@@ -20,14 +22,28 @@ class User:
     # def remove_game(self, game: Game):
     #     self.games.remove(game)
 
-    def serialize(self):
+    @property
+    def serialized(self):
         return {
             'username': self.username
         }
 
-class Database:
+class UserManager:
     def __init__(self) -> None:
         self.active_users: dict[str, User] = {}
+        self.network = NetworkManager()
+
+    def handle_message(self, message: MessageType, websocket: WebSocketServerProtocol):
+        if message['type'] == 'login':
+            username = message['data']['username']
+            user = self.add_user(username, websocket)
+            print(f'{username} has logged in.')
+            
+            message = {
+                'user': user.serialized,
+                'status': 'Success',
+            }
+            self.network.send_json_message(user=user, type='login', serialized_data=message)
 
     def add_user(self, username: str, websocket):
         if username in self.active_users:
